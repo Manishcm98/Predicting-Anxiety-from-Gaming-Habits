@@ -1,0 +1,89 @@
+---
+title: "Random Forest Model"
+output: html_document
+date: "2024-05-14"
+---
+
+```{r}
+library(randomForest)
+library(caret)
+library(pROC)
+library(ggplot2)
+```
+
+
+```{r}
+# Read and prepare data
+data <- read.csv("C:/Users/virat/Downloads/GamingStudy_data_IMP_cleaned.csv")
+factors <- c("Game", "Platform", "whyplay", "Gender", "Work", "Degree", "Playstyle", "Residence", "Birthplace")
+data[factors] <- lapply(data[factors], factor)
+data$Anxiety <- factor(data$Anxiety, levels = c(0, 1))
+
+# Model formula
+formula <- Anxiety ~ SWL1 + SWL2 + SWL3 + SWL4 + SWL5 + Game + Platform + Hours + whyplay + streams +
+  SPIN1 + SPIN2 + SPIN3 + SPIN4 + SPIN5 + SPIN6 + SPIN7 + SPIN8 + SPIN9 + SPIN10 + SPIN11 + SPIN12 + SPIN13 +
+  SPIN14 + SPIN15 + SPIN16 + SPIN17 + Narcissism + Gender + Age + Work + Degree + Playstyle + SWL_T + SPIN_T
+
+# Splitting the data
+set.seed(123)  # Ensure reproducibility
+train_indices <- createDataPartition(data$Anxiety, p = 0.85, list = FALSE)
+trainData <- data[train_indices, ]
+testData <- data[-train_indices, ]
+
+# Train the Random Forest model
+rf_model <- randomForest(formula, data = trainData, ntree = 80, importance = TRUE)
+
+# Predict and evaluate
+predictions <- predict(rf_model, newdata = testData)
+conf_matrix <- confusionMatrix(predictions, testData$Anxiety)
+print(conf_matrix$overall['Accuracy'])
+print(conf_matrix$byClass['Precision'])
+print(conf_matrix$byClass['Recall'])
+print(conf_matrix$byClass['F1'])
+```
+
+```{r}
+# Adjusted predictions
+adjusted_predictions <- ifelse(probabilities > optimal_threshold, 1, 0)
+adjusted_conf_matrix <- confusionMatrix(as.factor(adjusted_predictions), testData$Anxiety)
+
+# Convert the confusion matrix to a table for plotting
+conf_matrix_table <- as.table(adjusted_conf_matrix$table)
+
+# Create a confusion matrix plot
+conf_matrix_plot <- ggplot(data = as.data.frame(conf_matrix_table), aes(x = Reference, y = Prediction, fill = Freq)) +
+  geom_tile(color = "black") +
+  scale_fill_gradient(low = "#DCDCDC", high = "#A9A9A9") +
+  geom_text(aes(label = sprintf("%d", Freq)), vjust = 1) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(hjust = 1)) +
+  labs(fill = "Frequency",
+       title = "Confusion Matrix",
+       x = "Actual Category",
+       y = "Predicted Category")
+
+# Print the plot
+print(conf_matrix_plot)
+```
+
+
+```{r}
+# ROC curve and AUC
+probabilities <- predict(rf_model, newdata = testData, type = "prob")[, 2]
+roc_obj <- roc(response = testData$Anxiety, predictor = probabilities)
+plot(roc_obj)
+auc_value <- auc(roc_obj)
+cat("AUC: ", auc_value, "\n")
+```
+
+```{r}
+importance <- importance(rf_model)
+
+# Plot feature importance
+feature_importance <- data.frame(Feature = rownames(importance(rf_model)), Importance = importance(rf_model)[, 'MeanDecreaseGini'])
+ggplot(feature_importance, aes(x = reorder(Feature, Importance), y = Importance)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  xlab("Features") + ylab("Importance") +
+  ggtitle("Feature Importance") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+```

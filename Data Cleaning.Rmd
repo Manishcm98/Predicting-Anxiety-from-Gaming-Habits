@@ -1,0 +1,86 @@
+---
+title: "Data Cleaning"
+output: html_document
+date: "2024-04-21"
+---
+
+```{r}
+data <- read.csv('C:/GMU/spring_2024/ait664/project/GamingStudy_data.csv', fileEncoding = "ISO-8859-1")
+
+# Replace and categorize Degree entries
+data$Degree <- gsub("Bachelor.*", "Bachelors", data$Degree)
+data$Degree <- gsub("Master.*", "Masters", data$Degree)
+data$Degree <- gsub("High school diploma.*", "High School", data$Degree)
+data$Degree <- gsub("Ph.D..*", "PhD", data$Degree, perl = TRUE)
+data$Degree <- gsub("None", "None", data$Degree)
+
+data$Degree[!data$Degree %in% c("Bachelors", "Masters", "High School", "PhD", "None")] <- "Other"
+
+```
+```{r}
+data$Degree <- factor(data$Degree, levels = c("None", "High School", "Bachelors", "Masters", "PhD", "Other"))
+
+table(data$Degree)
+```
+
+```{r}
+# Simplify Work column
+data$Work <- ifelse(grepl("Unemployed", data$Work), "Unemployed",
+                    ifelse(grepl("Student", data$Work), "Student", "Employed"))
+
+# Convert Work to a factor for analysis
+data$Work <- factor(data$Work, levels = c("Student", "Employed", "Unemployed"))
+
+# Check the changes
+table(data$Work)
+```
+
+```{r}
+# Simplify Playstyle column
+data$Playstyle <- ifelse(grepl("Singleplayer", data$Playstyle), "Singleplayer", "Multiplayer")
+
+# Convert Playstyle to a factor for analysis
+data$Playstyle <- factor(data$Playstyle, levels = c("Singleplayer", "Multiplayer"))
+
+# Check the changes
+table(data$Playstyle)
+```
+
+```{r}
+# Categorize whyplay column
+data$whyplay <- ifelse(grepl("having fun|relaxing", data$whyplay, ignore.case = TRUE), "Fun", "Competition")
+
+# Convert whyplay to a factor for analysis
+data$whyplay <- factor(data$whyplay, levels = c("Fun", "Competition"))
+
+# Check the changes
+table(data$whyplay)
+```
+```{r}
+# Categorize Platform column
+data$Platform <- ifelse(grepl("PC", data$Platform), "PC",
+                        ifelse(grepl("Console", data$Platform), "Console",
+                               ifelse(grepl("Smartphone|Tablet", data$Platform), "Smartphone", "Other")))
+
+# Convert Platform to a factor for analysis
+data$Platform <- factor(data$Platform, levels = c("PC", "Console", "Smartphone", "Other"))
+
+# Check the changes
+table(data$Platform)
+```
+
+```{r}
+# Remove the columns 'earnings' and 'League'
+# Earning column is similar to whyplay column
+# League column is absurd and lot of missing values
+data <- data[, !names(data) %in% c("earnings", "League", "Zeitstempel", "highestleague", "accept", "Residence_ISO3", "Birthplace_ISO3", "Reference", "Unnamed..0")]
+data <- na.omit(data)
+
+# Create the 'Anxiety' column
+data$Anxiety <- ifelse(data$GAD_T < 10, 0, 1)
+```
+
+```{r}
+head(data)
+write.csv(data, 'C:/Users/virat/Downloads/GamingStudy_data_IMP_cleaned.csv', row.names = FALSE)
+```
